@@ -36,6 +36,8 @@ RUN pip install --no-cache-dir skidl ezdxf ollama pandas gradio pyspice
 
 WORKDIR /app
 COPY app.py /app/app.py
+COPY example-dxf.py /app/example-dxf.py
+
 
 EXPOSE 7860
 CMD ["python3", "/app/app.py"]
