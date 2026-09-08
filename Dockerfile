@@ -15,7 +15,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && add-apt-repository --yes ppa:kicad/kicad-8.0-releases \
     && apt-get update && apt-get install -y --no-install-recommends \
     kicad \
-    python3-kicad \
     && rm -rf /var/lib/apt/lists/*
 
 # Freerouting-JAR herunterladen
