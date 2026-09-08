@@ -8,7 +8,6 @@ import ollama
 import zipfile
 import re
 import uuid
-# KORREKTUR: 'area' (kleingeschrieben) statt 'Area'
 from ezdxf.math import area as dxf_area
 
 # Konfiguration über Umgebungsvariablen
@@ -34,7 +33,6 @@ def analyze_dxf_area(dxf_path):
             return 0.0, "Hinweis: Kein Layer 'OUTLINE' gefunden. Nutze Standardbereich."
 
         points = outlines[0].get_points('xy')
-        # KORREKTUR: Aufruf der Funktion dxf_area(points)
         calc_area = abs(dxf_area(points))
         return calc_area, f"Platinenfläche erfolgreich ermittelt: {calc_area:.1f} mm²"
     except Exception as e:
@@ -220,7 +218,7 @@ def run_pcb_pipeline(prompt, dxf_file):
         yield None, status_log
 
 # Gradio Web Interface
-with gr.Blocks(title="AI PCB Designer", theme=gr.themes.Monochrome()) as demo:
+with gr.Blocks(title="AI PCB Designer") as demo:
     gr.Markdown("# ⚡ AI PCB Designer Agent")
     gr.Markdown("Automatisierte Entwicklung von Schaltplänen und Layouts mit SPICE-Simulation, ERC, DRC und Gerber-Export.")
 
@@ -246,4 +244,8 @@ with gr.Blocks(title="AI PCB Designer", theme=gr.themes.Monochrome()) as demo:
 
 if __name__ == "__main__":
     os.makedirs(BASE_WORK_DIR, exist_ok=True)
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    demo.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        theme=gr.themes.Monochrome()
+    )
