@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
     libngspice0 \
     && add-apt-repository --yes ppa:kicad/kicad-8.0-releases \
     && apt-get update \
-    && apt-get install -y kicad \
+    && apt-get install -y kicad --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Dynamischer Download mit DNS-Retries und Fallback auf explizite Version
@@ -24,7 +24,7 @@ RUN DOWNLOAD_URL=$(curl -s --retry 3 https://api.github.com/repos/freerouting/fr
     | jq -r '[.assets[] | select(.name | endswith(".jar")) | .browser_download_url][0]') \
     && if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then \
          echo "API Fallback aktiviert..."; \
-         DOWNLOAD_URL="https://github.com/freerouting/freerouting/releases/download/v2.0.0/freerouting-2.4.1.jar"; \
+         DOWNLOAD_URL="https://github.com/freerouting/freerouting/releases/download/v2.4.1/freerouting-2.4.1.jar"; \
        fi \
     && curl -L --retry 5 --retry-connrefused -o /opt/freerouting.jar "$DOWNLOAD_URL"
 
