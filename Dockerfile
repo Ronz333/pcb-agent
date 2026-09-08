@@ -1,13 +1,11 @@
 FROM ubuntu:24.04
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Systempakete, KiCad 8 PPA, Java und ngspice installieren
-RUN apt-get update && apt-get install -y \
+# Systempakete, KiCad 8 PPA, Java (für Freerouting) und ngspice minimal installieren
+RUN apt-get update && apt-get install -y --no-install-recommends \
     software-properties-common \
-    wget \
     curl \
     jq \
-    git \
     python3 \
     python3-pip \
     python3-venv \
@@ -15,11 +13,12 @@ RUN apt-get update && apt-get install -y \
     ngspice \
     libngspice0 \
     && add-apt-repository --yes ppa:kicad/kicad-8.0-releases \
-    && apt-get update \
-    && apt-get install -y kicad --no-install-recommends \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    kicad \
+    python3-kicad \
     && rm -rf /var/lib/apt/lists/*
 
-# Dynamischer Download mit DNS-Retries und Fallback auf explizite Version
+# Freerouting-JAR herunterladen
 RUN DOWNLOAD_URL=$(curl -s --retry 3 https://api.github.com/repos/freerouting/freerouting/releases/latest \
     | jq -r '[.assets[] | select(.name | endswith(".jar")) | .browser_download_url][0]') \
     && if [ -z "$DOWNLOAD_URL" ] || [ "$DOWNLOAD_URL" = "null" ]; then \
@@ -33,7 +32,7 @@ ENV VIRTUAL_ENV=/opt/venv
 RUN python3 -m venv $VIRTUAL_ENV
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
-# Python-Bibliotheken für EDA, UI und SPICE-Simulation installieren
+# Python-Bibliotheken für PCB-Agent, Gradio & SPICE installieren
 RUN pip install --no-cache-dir skidl ezdxf ollama pandas gradio pyspice
 
 WORKDIR /app

@@ -8,7 +8,8 @@ import ollama
 import zipfile
 import re
 import uuid
-from ezdxf.math import Area
+# KORREKTUR: 'area' (kleingeschrieben) statt 'Area'
+from ezdxf.math import area as dxf_area
 
 # Konfiguration über Umgebungsvariablen
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama-api:11434")
@@ -33,8 +34,9 @@ def analyze_dxf_area(dxf_path):
             return 0.0, "Hinweis: Kein Layer 'OUTLINE' gefunden. Nutze Standardbereich."
 
         points = outlines[0].get_points('xy')
-        area = Area.polygon2d(points)
-        return area, f"Platinenfläche erfolgreich ermittelt: {area:.1f} mm²"
+        # KORREKTUR: Aufruf der Funktion dxf_area(points)
+        calc_area = abs(dxf_area(points))
+        return calc_area, f"Platinenfläche erfolgreich ermittelt: {calc_area:.1f} mm²"
     except Exception as e:
         return 0.0, f"DXF-Analyse übersprungen: {e}"
 
