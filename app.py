@@ -11,7 +11,7 @@ import uuid
 from ezdxf.math import area as dxf_area
 
 # Konfiguration über Umgebungsvariablen
-OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama-api:11434")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:32b")
 BASE_WORK_DIR = "/app/workdir"
 
