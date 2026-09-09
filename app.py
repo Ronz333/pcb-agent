@@ -12,8 +12,32 @@ from ezdxf.math import area as dxf_area
 
 # Konfiguration über Umgebungsvariablen
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:32b")
+DEFAULT_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5-coder:32b")
 BASE_WORK_DIR = "/app/workdir"
+
+def get_ollama_models():
+    """Lädt die Liste der aktuell in Ollama verfügbaren Modelle."""
+    try:
+        client = ollama.Client(host=OLLAMA_HOST)
+        res = client.list()
+        model_names = []
+        models_data = res.get('models', []) if isinstance(res, dict) else getattr(res, 'models', [])
+
+        for m in models_data:
+            m_name = (
+                (m.get('model') or m.get('name'))
+                if isinstance(m, dict)
+                else (getattr(m, 'model', None) or getattr(m, 'name', None))
+            )
+            if m_name:
+                model_names.append(m_name)
+
+        if model_names:
+            return model_names
+    except Exception as e:
+        print(f"Fehler beim Abrufen der Ollama-Modelle: {e}")
+
+    return [DEFAULT_MODEL]
 
 def extract_python_code(text):
     """Extrahiert sauberen Python-Code aus Markdown-Antworten des LLM."""
@@ -38,12 +62,12 @@ def analyze_dxf_area(dxf_path):
     except Exception as e:
         return 0.0, f"DXF-Analyse übersprungen: {e}"
 
-def execute_with_healing(client, system_prompt, user_prompt, script_path, work_dir, max_retries=3):
+def execute_with_healing(client, selected_model, system_prompt, user_prompt, script_path, work_dir, max_retries=3):
     """Führt KI-generierten Python-Code aus und fordert bei Fehlern Selbstkorrektur an."""
     current_prompt = user_prompt
 
     for attempt in range(max_retries):
-        response = client.chat(model=OLLAMA_MODEL, messages=[
+        response = client.chat(model=selected_model, messages=[
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': current_prompt}
         ])
@@ -72,18 +96,19 @@ def execute_with_healing(client, system_prompt, user_prompt, script_path, work_d
 
     return False, f"Abbruch nach {max_retries} Versuchen. Fehler:\n{error_msg}"
 
-def run_pcb_pipeline(prompt, dxf_file):
+def run_pcb_pipeline(prompt, dxf_file, selected_model):
     """Vollständige Pipeline mit SPICE, ERC, DRC und Gerber-Export."""
     if dxf_file is None:
         yield None, "❌ Bitte laden Sie eine DXF-Datei der Platinenkontur hoch."
         return
 
+    active_model = selected_model if selected_model else DEFAULT_MODEL
     session_id = str(uuid.uuid4())[:8]
     work_dir = os.path.join(BASE_WORK_DIR, session_id)
     os.makedirs(work_dir, exist_ok=True)
 
     status_log = f"🚀 Starte Workflow (Session ID: {session_id})\n"
-    status_log += f"Verbindung zu Ollama: {OLLAMA_HOST} (Modell: {OLLAMA_MODEL})\n\n"
+    status_log += f"Verbindung zu Ollama: {OLLAMA_HOST} (Gewähltes Modell: {active_model})\n\n"
     yield None, status_log
 
     client = ollama.Client(host=OLLAMA_HOST)
@@ -108,7 +133,7 @@ def run_pcb_pipeline(prompt, dxf_file):
         )
 
         success, msg = execute_with_healing(
-            client, sys_skidl, f"Spezifikation: {prompt}",
+            client, active_model, sys_skidl, f"Spezifikation: {prompt}",
             os.path.join(work_dir, "gen_schematic.py"), work_dir
         )
         status_log += f"      ↳ {msg}\n"
@@ -169,7 +194,7 @@ def run_pcb_pipeline(prompt, dxf_file):
         )
 
         success, msg = execute_with_healing(
-            client, sys_pcb, "Platziere die Bauteile auf dem Board.",
+            client, active_model, sys_pcb, "Platziere die Bauteile auf dem Board.",
             os.path.join(work_dir, "gen_placement.py"), work_dir
         )
         status_log += f"      ↳ {msg}\n"
@@ -218,12 +243,25 @@ def run_pcb_pipeline(prompt, dxf_file):
         yield None, status_log
 
 # Gradio Web Interface
+initial_models = get_ollama_models()
+default_selection = DEFAULT_MODEL if DEFAULT_MODEL in initial_models else initial_models[0]
+
 with gr.Blocks(title="AI PCB Designer") as demo:
     gr.Markdown("# ⚡ AI PCB Designer Agent")
     gr.Markdown("Automatisierte Entwicklung von Schaltplänen und Layouts mit SPICE-Simulation, ERC, DRC und Gerber-Export.")
 
     with gr.Row():
         with gr.Column(scale=1):
+            with gr.Row():
+                model_dropdown = gr.Dropdown(
+                    choices=initial_models,
+                    value=default_selection,
+                    label="Ollama Modell auswählen",
+                    interactive=True,
+                    scale=4
+                )
+                refresh_models_btn = gr.Button("🔄", variant="secondary", scale=1)
+
             prompt_input = gr.Textbox(
                 lines=6,
                 label="Schaltungs-Spezifikation",
@@ -236,9 +274,14 @@ with gr.Blocks(title="AI PCB Designer") as demo:
             status_output = gr.Textbox(label="Prozess-Protokoll", interactive=False, lines=15)
             file_output = gr.File(label="Gerber & Drill ZIP-Archiv")
 
+    refresh_models_btn.click(
+        fn=lambda: gr.Dropdown(choices=get_ollama_models()),
+        outputs=[model_dropdown]
+    )
+
     submit_btn.click(
         fn=run_pcb_pipeline,
-        inputs=[prompt_input, dxf_input],
+        inputs=[prompt_input, dxf_input, model_dropdown],
         outputs=[file_output, status_output]
     )
 
