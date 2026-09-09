@@ -40,11 +40,22 @@ def get_ollama_models():
     return [DEFAULT_MODEL]
 
 def extract_python_code(text):
-    """Extrahiert sauberen Python-Code aus Markdown-Antworten des LLM."""
-    match = re.search(r'```python\n(.*?)```', text, re.DOTALL)
+    """
+    Extrahiert sauberen Python-Code aus Markdown-Antworten des LLM,
+    unabhängig von Groß-/Kleinschreibung des Tags (z.B. ```python, ```Python, ```py).
+    """
+    if not text:
+        return ""
+
+    # Suche nach ```python, ```Python, ```py etc. (Case-Insensitive)
+    match = re.search(r'```(?:python|py)?\s*\n(.*?)```', text, re.DOTALL | re.IGNORECASE)
     if match:
-        return match.group(1)
-    return text.replace('```python', '').replace('```', '')
+        return match.group(1).strip()
+
+    # Fallback: Säubern, falls keine schließenden Backticks vorhanden sind
+    cleaned = re.sub(r'^```[a-zA-Z]*\n?', '', text.strip(), flags=re.IGNORECASE)
+    cleaned = re.sub(r'```$', '', cleaned)
+    return cleaned.strip()
 
 def analyze_dxf_area(dxf_path):
     """Liest die Außenkontur aus der DXF-Datei aus und berechnet die Fläche."""
